@@ -21,6 +21,9 @@ wg genkey | tee $WG_DIR/privatekey | wg pubkey > $WG_DIR/publickey
 CLIENT_PRIVATE_KEY=$(cat $WG_DIR/privatekey)
 CLIENT_PUBLIC_KEY=$(cat $WG_DIR/publickey)
 
+# 获取默认网卡名称
+DEFAULT_INTERFACE=$(ip route | grep default | awk '{print $5}')
+
 # 3. 配置 WireGuard 客户端
 cat > $WG_DIR/$WG_IF.conf <<EOF
 [Interface]
@@ -29,9 +32,9 @@ PrivateKey = $CLIENT_PRIVATE_KEY
 DNS = 8.8.8.8
 
 # 确保 SSH 走本地网络
-PostUp = ip rule add from $(ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}') table 128
+PostUp = ip rule add from $(ip -4 addr show $DEFAULT_INTERFACE | grep -oP '(?<=inet\s)\d+(\.\d+){3}') table 128
 PostUp = ip route add table 128 default via $(ip route | grep default | awk '{print $3}')
-PostDown = ip rule delete from $(ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}') table 128
+PostDown = ip rule delete from $(ip -4 addr show $DEFAULT_INTERFACE | grep -oP '(?<=inet\s)\d+(\.\d+){3}') table 128
 PostDown = ip route delete table 128 default via $(ip route | grep default | awk '{print $3}')
 
 [Peer]
@@ -51,5 +54,4 @@ echo "✅ WireGuard 客户端安装完成！"
 echo "🌍 请在服务器上执行以下命令添加客户端："
 echo "sudo wg set wg0 peer $CLIENT_PUBLIC_KEY allowed-ips $CLIENT_IP/32"
 echo "====================================="
-
 
