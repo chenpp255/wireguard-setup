@@ -12,21 +12,15 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-# 服务器 IP（默认你的服务器 47.113.224.6）
-DEFAULT_SERVER_IP="47.113.224.6"
+# FRP 服务器 IP 和端口
+SERVER_IP="47.113.224.6"
+SERVER_PORT=7000
+AUTH_TOKEN="vast.99"
 
-# 交互式输入服务器 IP（默认 47.113.224.6）
-read -p "请输入你的 FRP 服务器 IP（回车使用默认: $DEFAULT_SERVER_IP）: " SERVER_IP
-SERVER_IP=${SERVER_IP:-$DEFAULT_SERVER_IP}
-
-# 交互式输入 FRP 服务器端口
-read -p "请输入 FRP 服务器端口（默认 7000）: " SERVER_PORT
-SERVER_PORT=${SERVER_PORT:-7000}
-
-# 自动获取未使用的 50000+ 端口
+# 生成随机未使用的 50000+ 端口
 get_random_port() {
     while :; do
-        RANDOM_PORT=$((RANDOM % 10000 + 50000))  # 生成 50000 - 60000 之间的随机端口
+        RANDOM_PORT=$((RANDOM % 10000 + 50000))  # 50000-60000 之间
         if ! ss -tuln | awk '{print $4}' | grep -q ":$RANDOM_PORT$"; then
             echo "$RANDOM_PORT"
             return
@@ -49,6 +43,8 @@ cat > "$CONFIG_FILE" <<EOF
 [common]
 server_addr = "$SERVER_IP"
 server_port = $SERVER_PORT
+transport.tls.enable = true
+auth.token = "$AUTH_TOKEN"
 
 [[proxies]]
 name = "ssh"
@@ -80,6 +76,6 @@ systemctl daemon-reload
 systemctl enable frpc
 systemctl restart frpc
 
-echo "frpc 安装完成，并已启动！"
-echo "已分配的 SSH 远程端口: $REMOTE_PORT"
-echo "运行 'systemctl status frpc' 查看状态"
+echo "✅ frpc 安装完成，并已启动！"
+echo "✅ 已分配的 SSH 远程端口: $REMOTE_PORT"
+echo "✅ 运行 'systemctl status frpc' 查看状态"
