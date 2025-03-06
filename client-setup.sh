@@ -28,6 +28,12 @@ Address = $CLIENT_IP/24
 PrivateKey = $CLIENT_PRIVATE_KEY
 DNS = 8.8.8.8
 
+# 确保 SSH 走本地网络
+PostUp = ip rule add from $(ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}') table 128
+PostUp = ip route add table 128 default via $(ip route | grep default | awk '{print $3}')
+PostDown = ip rule delete from $(ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}') table 128
+PostDown = ip route delete table 128 default via $(ip route | grep default | awk '{print $3}')
+
 [Peer]
 PublicKey = jmlOeivB5INpgiA4vYNdfKbsmoSweh5DKkNlK0S8kAw=
 Endpoint = $WG_SERVER_IP:$WG_SERVER_PORT
