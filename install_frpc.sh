@@ -42,15 +42,16 @@ wget -qO- "https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp
 cat > "$CONFIG_FILE" <<EOF
 #frpc.toml
 transport.tls.enable = true
-server_addr = "47.113.224.6"
-server_port = 7000
+serverAddr = "47.113.224.6"
+serverPort = 7000
 auth.token = "vast.99"
 
+#tcp
 [[proxies]]
-name = "ssh"
+name = "vast-ssh"
 type = "tcp"
-local_ip = "127.0.0.1"
-local_port = 22
+localIP = "127.0.0.1"
+localPort = 22
 remote_port = $REMOTE_PORT
 EOF
 
