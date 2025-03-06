@@ -47,7 +47,7 @@ transport.tls.enable = true
 auth.token = "$AUTH_TOKEN"
 
 [[proxies]]
-name = "ssh"
+name = "vast-ssh"
 type = "tcp"
 local_ip = "127.0.0.1"
 local_port = 22
@@ -55,6 +55,9 @@ remote_port = $REMOTE_PORT
 EOF
 
 echo "frpc.toml 配置文件已创建在 $CONFIG_FILE"
+
+# 确保 frpc.toml 没有 Windows 换行符
+dos2unix "$CONFIG_FILE"
 
 # 创建 systemd 服务
 cat > "$SYSTEMD_SERVICE" <<EOF
