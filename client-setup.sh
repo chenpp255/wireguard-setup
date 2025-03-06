@@ -10,9 +10,9 @@ WG_SERVER_PORT="51820"
 CLIENT_IP="10.0.0.2"
 WG_DIR="/etc/wireguard"
 
-# 1. 安装 WireGuard
+# 1. 安装 WireGuard 和 resolvconf
 sudo apt update
-sudo apt install -y wireguard
+sudo apt install -y wireguard openresolv
 
 # 2. 生成密钥
 mkdir -p $WG_DIR && chmod 700 $WG_DIR
@@ -45,4 +45,5 @@ echo "✅ WireGuard 客户端安装完成！"
 echo "🌍 请在服务器上执行以下命令添加客户端："
 echo "sudo wg set wg0 peer $CLIENT_PUBLIC_KEY allowed-ips $CLIENT_IP/32"
 echo "====================================="
+
 
