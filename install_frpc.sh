@@ -48,9 +48,9 @@ wget -qO- "https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp
 cat > "$CONFIG_FILE" <<EOF
 #frpc.toml
 transport.tls.enable = true
-server_addr = "$SERVER_IP"
-server_port = $SERVER_PORT
-auth.token = "$AUTH_TOKEN"
+serverAddr = "47.113.224.6"
+serverPort = 7000
+auth.token = "vast.99"
 
 [[proxies]]
 name = "ssh"
