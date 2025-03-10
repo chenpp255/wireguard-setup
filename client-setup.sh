@@ -23,6 +23,8 @@ CLIENT_PUBLIC_KEY=$(cat $WG_DIR/publickey)
 
 # 获取默认网卡名称
 DEFAULT_INTERFACE=$(ip route | grep default | awk '{print $5}')
+DEFAULT_GATEWAY=$(ip route | grep default | awk '{print $3}')
+CLIENT_IP_ADDR=$(ip -4 addr show $DEFAULT_INTERFACE | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
 
 # 3. 配置 WireGuard 客户端
 cat > $WG_DIR/$WG_IF.conf <<EOF
@@ -31,14 +33,18 @@ Address = $CLIENT_IP/24
 PrivateKey = $CLIENT_PRIVATE_KEY
 DNS = 8.8.8.8
 
-# 确保 SSH 走本地网络
-PostUp = ip rule add from $(ip -4 addr show $DEFAULT_INTERFACE | grep -oP '(?<=inet\s)\d+(\.\d+){3}') table 128
-PostUp = ip route add table 128 default via $(ip route | grep default | awk '{print $3}')
-PostDown = ip rule delete from $(ip -4 addr show $DEFAULT_INTERFACE | grep -oP '(?<=inet\s)\d+(\.\d+){3}') table 128
-PostDown = ip route delete table 128 default via $(ip route | grep default | awk '{print $3}')
+# 确保所有流量都走 VPN
+PostUp = ip route add default dev wg0
+PostDown = ip route del default dev wg0
+
+# 保持本地 SSH 连接
+PostUp = ip rule add from $CLIENT_IP_ADDR table 128
+PostUp = ip route add table 128 default via $DEFAULT_GATEWAY
+PostDown = ip rule delete from $CLIENT_IP_ADDR table 128
+PostDown = ip route delete table 128 default via $DEFAULT_GATEWAY
 
 [Peer]
-PublicKey = QUu+T+YwL/fY8b7sQClIyv7bpXQGMYLiWmLunpVMKTY=
+PublicKey = jmlOeivB5INpgiA4vYNdfKbsmoSweh5DKkNlK0S8kAw=
 Endpoint = $WG_SERVER_IP:$WG_SERVER_PORT
 AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
