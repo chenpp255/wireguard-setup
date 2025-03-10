@@ -5,7 +5,7 @@
 set -e  # 遇到错误退出
 
 WG_IF="wg0"
-WG_SERVER_IP="61.222.202.243"
+WG_SERVER_IP="183.20.128.15"
 WG_SERVER_PORT="51820"
 CLIENT_IP="10.0.0.2"
 WG_DIR="/etc/wireguard"
@@ -38,7 +38,7 @@ PostDown = ip rule delete from $(ip -4 addr show $DEFAULT_INTERFACE | grep -oP '
 PostDown = ip route delete table 128 default via $(ip route | grep default | awk '{print $3}')
 
 [Peer]
-PublicKey = jmlOeivB5INpgiA4vYNdfKbsmoSweh5DKkNlK0S8kAw=
+PublicKey = QUu+T+YwL/fY8b7sQClIyv7bpXQGMYLiWmLunpVMKTY=
 Endpoint = $WG_SERVER_IP:$WG_SERVER_PORT
 AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
