@@ -9,6 +9,7 @@ WG_PORT="51820"
 WG_DIR="/etc/wireguard"
 IP_RANGE="10.0.0"
 SERVER_IP="$IP_RANGE.1"
+SERVER_PUBLIC_IP="183.20.128.15"
 INTERFACE=$(ip route | grep default | awk '{print $5}')
 
 # 安装 WireGuard 和必要工具
@@ -56,37 +57,51 @@ if [ ! -f /etc/wireguard/used_ips ]; then
 fi
 
 # 添加 register-client.sh 用于注册客户端
-cat > /usr/local/bin/register-client.sh <<'EOF'
+cat > /usr/local/bin/register-client.sh <<EOF
 #!/bin/bash
 set -e
 
 WG_IF="wg0"
-WG_CONF="/etc/wireguard/$WG_IF.conf"
+WG_CONF="/etc/wireguard/\$WG_IF.conf"
 WG_DIR="/etc/wireguard"
 IP_RANGE="10.0.0"
+SERVER_PUBLIC_IP="$SERVER_PUBLIC_IP"
 
-if [ -z "$1" ]; then
+if [ -z "\$1" ]; then
   echo "❌ 请输入客户端公钥作为参数"
   exit 1
 fi
-CLIENT_PUBKEY="$1"
+CLIENT_PUBKEY="\$1"
 
 if [ ! -f /etc/wireguard/used_ips ]; then
   echo "2" > /etc/wireguard/used_ips
 fi
 
-LAST_IP=$(cat /etc/wireguard/used_ips)
-CLIENT_IP="$IP_RANGE.$LAST_IP"
-echo "$((LAST_IP + 1))" > /etc/wireguard/used_ips
+LAST_IP=\$(cat /etc/wireguard/used_ips)
+CLIENT_IP="\$IP_RANGE.\$LAST_IP"
+echo "\$((LAST_IP + 1))" > /etc/wireguard/used_ips
 
 # 添加 Peer
-wg set $WG_IF peer "$CLIENT_PUBKEY" allowed-ips "$CLIENT_IP/32"
+wg set \$WG_IF peer "\$CLIENT_PUBKEY" allowed-ips "\$CLIENT_IP/32"
 
 # 如果 config 文件未包含此 Peer，也追加（仅用于参考，实际控制用 wg）
-grep -q "$CLIENT_PUBKEY" "$WG_CONF" || echo -e "\n[Peer]\nPublicKey = $CLIENT_PUBKEY\nAllowedIPs = $CLIENT_IP/32" >> "$WG_CONF"
+grep -q "\$CLIENT_PUBKEY" "\$WG_CONF" || echo -e "\n[Peer]\nPublicKey = \$CLIENT_PUBKEY\nAllowedIPs = \$CLIENT_IP/32" >> "\$WG_CONF"
 
-echo "✅ 已注册客户端: $CLIENT_PUBKEY"
-echo "📡 分配 IP: $CLIENT_IP"
+echo "✅ 已注册客户端: \$CLIENT_PUBKEY"
+echo "📡 分配 IP: \$CLIENT_IP"
+echo "📎 请在客户端使用以下配置："
+echo "-------------------------------------"
+echo "[Interface]"
+echo "PrivateKey = <客户端私钥>"
+echo "Address = \$CLIENT_IP/24"
+echo "DNS = 8.8.8.8"
+echo ""
+echo "[Peer]"
+echo "PublicKey = $SERVER_PUBLIC_KEY"
+echo "Endpoint = $SERVER_PUBLIC_IP:$WG_PORT"
+echo "AllowedIPs = 0.0.0.0/0"
+echo "PersistentKeepalive = 25"
+echo "-------------------------------------"
 EOF
 
 chmod +x /usr/local/bin/register-client.sh
@@ -98,5 +113,5 @@ echo "🌐 服务地址: $SERVER_IP"
 echo "🔑 公钥: $SERVER_PUBLIC_KEY"
 echo "📡 监听端口: $WG_PORT"
 echo "📥 客户端注册命令: register-client.sh <客户端公钥>"
+echo "🌍 对外 IP: $SERVER_PUBLIC_IP"
 echo "====================================="
-
