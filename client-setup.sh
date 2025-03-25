@@ -6,7 +6,7 @@ set -e
 
 WG_IF="wg0"
 WG_DIR="/etc/wireguard"
-SERVER_API="183.20.128.15"
+SERVER_API="47.238.98.234"
 WG_PORT="51820"
 
 # 安装 WireGuard
