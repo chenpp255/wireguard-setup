@@ -56,7 +56,7 @@ PostDown = ip route delete table 128 default via $DEFAULT_GW
 PostDown = iptables -t mangle -D OUTPUT -p tcp --dport 22 -j MARK --set-mark 128
 
 [Peer]
-PublicKey = Um8oSWLisgk3hLnPhLUMEGH4p48Uql6i4K81CJDeiFo=
+PublicKey = loO9B8dlchzYw6gjfpUgPaEDGDXeT029GE6adN3F7Sc=
 Endpoint = $SERVER_API:$WG_PORT
 AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
