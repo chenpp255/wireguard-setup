@@ -1,69 +1,71 @@
 #!/bin/bash
 
-### WireGuard 客户端一键安装脚本 ###
+### WireGuard 客户端一键安装脚本（自动生成密钥、注册并配置全流量代理，排除 SSH，自动获取网卡）###
 
-set -e  # 遇到错误退出
+set -e
 
 WG_IF="wg0"
-WG_SERVER_IP="183.20.128.15"
-WG_SERVER_PORT="51820"
 WG_DIR="/etc/wireguard"
-IP_RANGE="10.0.0"
+SERVER_API="183.20.128.15"
+WG_PORT="51820"
 
-# 1. 安装 WireGuard 和 resolvconf
+# 安装 WireGuard
 sudo apt update
-sudo apt install -y wireguard openresolv
+sudo apt install -y wireguard openresolv curl
 
-# 2. 生成密钥
-mkdir -p $WG_DIR && chmod 700 $WG_DIR
+# 创建配置目录
+sudo mkdir -p $WG_DIR && sudo chmod 700 $WG_DIR
+
+# 生成密钥
 wg genkey | tee $WG_DIR/privatekey | wg pubkey > $WG_DIR/publickey
-
 CLIENT_PRIVATE_KEY=$(cat $WG_DIR/privatekey)
 CLIENT_PUBLIC_KEY=$(cat $WG_DIR/publickey)
 
-# 获取默认网卡名称
-DEFAULT_INTERFACE=$(ip route | grep default | awk '{print $5}')
-DEFAULT_GATEWAY=$(ip route | grep default | awk '{print $3}')
+# 注册到服务器并获取分配 IP（调用远程注册脚本）
+echo "\n📡 正在向服务器注册客户端..."
+REGISTER_RESPONSE=$(curl -s --max-time 10 --retry 3 --retry-delay 2 \
+  -X POST "http://$SERVER_API:8000/register-client" \
+  -d "pubkey=$CLIENT_PUBLIC_KEY")
 
-# 自动分配不重复的 IP
-LAST_IP=$(grep -oP '(?<=AllowedIPs = 10.0.0.)\d+' /etc/wireguard/wg0.conf | sort -n | tail -1)
-if [ -z "$LAST_IP" ]; then
-  CLIENT_IP="$IP_RANGE.2"
-else
-  CLIENT_IP="$IP_RANGE.$((LAST_IP + 1))"
+if [[ -z "$REGISTER_RESPONSE" || "$REGISTER_RESPONSE" != *"Assigned-IP:"* ]]; then
+  echo "❌ 注册失败，服务器无响应或格式错误"
+  exit 1
 fi
 
-# 3. 配置 WireGuard 客户端
+# 从响应中解析分配的 IP
+CLIENT_IP=$(echo "$REGISTER_RESPONSE" | grep "Assigned-IP:" | awk '{print $2}')
+
+# 自动获取默认网卡和网关
+DEFAULT_IF=$(ip route get 1 | awk '{for(i=1;i<=NF;i++){if($i=="dev"){print $(i+1); exit}}}')
+DEFAULT_GW=$(ip route | grep default | awk '{print $3}')
+LOCAL_IP=$(ip -4 addr show $DEFAULT_IF | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+
+# 写入 WireGuard 配置
 cat > $WG_DIR/$WG_IF.conf <<EOF
 [Interface]
 Address = $CLIENT_IP/24
 PrivateKey = $CLIENT_PRIVATE_KEY
 DNS = 8.8.8.8
 
-# 确保 SSH 22 端口走本地网络，其他流量走代理
-PostUp = ip rule add from $CLIENT_IP table 128
-PostUp = ip route add table 128 default via $DEFAULT_GATEWAY
-PostUp = ip rule add dport 22 table 128
-PostDown = ip rule delete from $CLIENT_IP table 128
-PostDown = ip route delete table 128 default via $DEFAULT_GATEWAY
-PostDown = ip rule delete dport 22 table 128
+# SSH 流量走本地，其它走 VPN
+PostUp = ip rule add from $LOCAL_IP table 128
+PostUp = ip route add table 128 default via $DEFAULT_GW
+PostUp = iptables -t mangle -A OUTPUT -p tcp --dport 22 -j MARK --set-mark 128
+PostDown = ip rule delete from $LOCAL_IP table 128
+PostDown = ip route delete table 128 default via $DEFAULT_GW
+PostDown = iptables -t mangle -D OUTPUT -p tcp --dport 22 -j MARK --set-mark 128
 
 [Peer]
-PublicKey = jmlOeivB5INpgiA4vYNdfKbsmoSweh5DKkNlK0S8kAw=
-Endpoint = $WG_SERVER_IP:$WG_SERVER_PORT
+PublicKey = Um8oSWLisgk3hLnPhLUMEGH4p48Uql6i4K81CJDeiFo=
+Endpoint = $SERVER_API:$WG_PORT
 AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 EOF
 
-# 4. 启动 WireGuard
-systemctl enable wg-quick@$WG_IF
-systemctl start wg-quick@$WG_IF
+# 启动 WireGuard
+sudo systemctl enable wg-quick@$WG_IF
+sudo systemctl start wg-quick@$WG_IF
 
-# 5. 在中转服务器上添加客户端（手动执行）
-echo "====================================="
-echo "✅ 客户端安装完成！"
-echo "🌍 请在服务器上执行以下命令添加客户端："
-echo "sudo wg set wg0 peer $CLIENT_PUBLIC_KEY allowed-ips $CLIENT_IP/32"
-echo "====================================="
-
-
+# 测试连接
+sleep 2
+curl -s ifconfig.me || echo "❗ 检查代理是否生效"
