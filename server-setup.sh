@@ -9,7 +9,7 @@ WG_PORT="51820"
 WG_DIR="/etc/wireguard"
 IP_RANGE="10.0.0"
 SERVER_IP="$IP_RANGE.1"
-SERVER_PUBLIC_IP="183.20.128.15"
+SERVER_PUBLIC_IP="47.238.98.234"
 INTERFACE=$(ip route | grep default | awk '{print $5}')
 
 # 安装 WireGuard 和必要工具
