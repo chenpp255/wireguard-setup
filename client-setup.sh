@@ -1,6 +1,6 @@
 #!/bin/bash
 
-### WireGuard 客户端一键安装脚本（自动生成密钥、注册并配置全流量代理，排除 SSH，自动获取网卡）###
+### WireGuard 客户端一键安装脚本（自动生成密钥、注册并配置全流量代理，排除 SSH，自动获取网卡，增强 debug）###
 
 set -e
 
@@ -8,6 +8,7 @@ WG_IF="wg0"
 WG_DIR="/etc/wireguard"
 SERVER_API="47.238.98.234"
 WG_PORT="51820"
+IP_RANGE="10.0.0"
 
 # 安装 WireGuard
 sudo apt update
@@ -21,24 +22,30 @@ wg genkey | tee $WG_DIR/privatekey | wg pubkey > $WG_DIR/publickey
 CLIENT_PRIVATE_KEY=$(cat $WG_DIR/privatekey)
 CLIENT_PUBLIC_KEY=$(cat $WG_DIR/publickey)
 
-# 注册到服务器并获取分配 IP（调用远程注册脚本）
-echo "\n📡 正在向服务器注册客户端..."
-REGISTER_RESPONSE=$(curl -s --max-time 10 --retry 3 --retry-delay 2 \
-  -X POST "http://$SERVER_API:8000/register-client" \
-  -d "pubkey=$CLIENT_PUBLIC_KEY")
-
-if [[ -z "$REGISTER_RESPONSE" || "$REGISTER_RESPONSE" != *"Assigned-IP:"* ]]; then
-  echo "❌ 注册失败，服务器无响应或格式错误"
-  exit 1
-fi
-
-# 从响应中解析分配的 IP
-CLIENT_IP=$(echo "$REGISTER_RESPONSE" | grep "Assigned-IP:" | awk '{print $2}')
-
-# 自动获取默认网卡和网关
+# 获取默认网卡和本地网关
 DEFAULT_IF=$(ip route get 1 | awk '{for(i=1;i<=NF;i++){if($i=="dev"){print $(i+1); exit}}}')
 DEFAULT_GW=$(ip route | grep default | awk '{print $3}')
 LOCAL_IP=$(ip -4 addr show $DEFAULT_IF | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+
+# 调试输出公钥
+echo -e "\n📡 正在向服务器注册客户端..."
+echo "➡ 公钥: $CLIENT_PUBLIC_KEY"
+
+# 调用注册接口，抓取完整响应
+REGISTER_RESP=$(curl -s -w "\n[HTTP状态码:%{http_code}]" \
+  -X POST "http://$SERVER_API:8000/register-client" \
+  -d "pubkey=$CLIENT_PUBLIC_KEY")
+
+# 显示响应内容
+echo -e "⬅ 服务器响应:\n$REGISTER_RESP"
+
+# 解析 IP（支持格式：Assigned-IP: x.x.x.x 或直接 x.x.x.x）
+CLIENT_IP=$(echo "$REGISTER_RESP" | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -n1)
+
+if [[ -z "$CLIENT_IP" ]]; then
+  echo "❌ 注册失败，服务器无响应或返回格式错误"
+  exit 1
+fi
 
 # 写入 WireGuard 配置
 cat > $WG_DIR/$WG_IF.conf <<EOF
