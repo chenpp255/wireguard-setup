@@ -14,7 +14,7 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-# ========== 切换为清华源 ==========
+# ========== 使用国内源 ==========
 echo -e "${GREEN}🌐 切换 apt 源为清华镜像${NC}"
 cp /etc/apt/sources.list /etc/apt/sources.list.bak
 sed -i 's|http://.*.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list
@@ -37,7 +37,7 @@ echo -e "${GREEN}📦 安装常用工具...${NC}"
 apt install -y vim git curl wget htop screen unzip build-essential python3-pip
 
 # ========== 安装 Docker ==========
-echo -e "${GREEN}🐳 安装 Docker（自动选择镜像源）...${NC}"
+echo -e "${GREEN}🐳 安装 Docker（自动适配国内源）...${NC}"
 DOCKER_URL="https://download.docker.com"
 if ! curl -s --connect-timeout 3 https://download.docker.com >/dev/null; then
   DOCKER_URL="https://mirrors.tuna.tsinghua.edu.cn/docker-ce"
@@ -65,12 +65,19 @@ else
 fi
 
 if [[ -z "$CUDA_INCLUDE" ]]; then
-  echo "❌ 未找到 cublas_v2.h，请确保 CUDA 安装正确"
+  echo "❌ 未找到 cublas_v2.h，请确保 CUDA 安装正确。"
   exit 1
 fi
 
 make clean
 make EXTRA_FLAGS="-I$CUDA_INCLUDE"
 
-echo -e "${GREEN}✅ 所有任务完成！你可以用下面命令进行测试：${NC}"
+# ========== 测试 NCCL 通信（使用国内镜像） ==========
+echo -e "${GREEN}⚡ 测试 NCCL 通信（使用清华镜像）...${NC}"
+docker run --shm-size 4G --rm --runtime=nvidia --gpus all \
+  mirrors.tuna.tsinghua.edu.cn/pytorch/pytorch:latest \
+  bash -c 'apt update; apt-get install -y wget; wget https://s3.amazonaws.com/vast.ai/test_NCCL.py; python3 test_NCCL.py --num-gpus 4 --backend NCCL;'
+
+echo -e "${GREEN}✅ 所有任务完成！你可以用如下命令进行测试：${NC}"
 echo -e "${GREEN}   cd /root/gpu-burn && ./gpu-burn -d 0 60${NC}"
+
