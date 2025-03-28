@@ -34,7 +34,7 @@ sudo systemctl isolate multi-user.target || true
 
 # 安装 NVIDIA 驱动
 echo "🚀 Installing NVIDIA driver silently..."
-sudo ./$NVIDIA_RUN --silent --dkms --kernel-module-type=kernel-open || {
+sudo ./$NVIDIA_RUN --silent --dkms || {
   echo "❌ 安装失败，请检查日志或重试。"
   exit 1
 }
