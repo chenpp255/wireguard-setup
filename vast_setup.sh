@@ -36,6 +36,12 @@ fi
 echo -e "${GREEN}📦 安装常用工具...${NC}"
 apt install -y vim git curl wget htop screen unzip build-essential python3-pip
 
+# ========== 下载并预先执行 nvml_fix.py ==========
+echo -e "${GREEN}🔧 下载并预先执行 nvml_fix.py...${NC}"
+cd /root
+wget -q https://raw.githubusercontent.com/jjziets/vasttools/main/nvml_fix.py
+python3 nvml_fix.py || true
+
 # ========== 安装 Docker ==========
 echo -e "${GREEN}🐳 安装 Docker（自动选择镜像源）...${NC}"
 DOCKER_URL="https://download.docker.com"
@@ -72,10 +78,9 @@ fi
 make clean
 make EXTRA_FLAGS="-I$CUDA_INCLUDE"
 
-# ========== 下载并执行 nvml_fix.py ==========
-echo -e "${GREEN}🔧 下载并执行 nvml_fix.py...${NC}"
+# ========== 重复执行 nvml_fix.py 以确保生效 ==========
+echo -e "${GREEN}🔄 重复执行 nvml_fix.py 确保生效...${NC}"
 cd /root
-wget -q https://raw.githubusercontent.com/jjziets/vasttools/main/nvml_fix.py
 python3 nvml_fix.py || true
 
 echo -e "${GREEN}✅ 所有任务完成！你可以用下面命令进行测试：${NC}"
