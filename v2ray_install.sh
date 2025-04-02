@@ -15,7 +15,13 @@ rm -rf v2ray && unzip -q "$ZIP_NAME" -d v2ray
 
 echo "⚙️ 安装核心组件 ..."
 sudo install -m 755 v2ray/v2ray /usr/local/bin/v2ray
-#sudo install -m 755 v2ray/v2ctl /usr/local/bin/v2ctl
+if [ -f v2ray/v2ctl ]; then
+  echo "📁 检测到 v2ctl，安装中 ..."
+  sudo install -m 755 v2ray/v2ctl /usr/local/bin/v2ctl
+else
+  echo "ℹ️ 跳过安装 v2ctl（该版本已移除）"
+fi
+
 sudo mkdir -p /usr/local/share/v2ray
 sudo cp -r v2ray/geo* /usr/local/share/v2ray/
 
@@ -23,7 +29,6 @@ echo "📁 创建配置目录 ..."
 sudo mkdir -p /usr/local/etc/v2ray
 
 # ========== 自动导入配置 ==========
-
 read -p "🌐 是否从远程导入配置？请输入配置文件 URL（留空则使用默认 VMess 配置）: " config_url
 
 if [[ -n "$config_url" ]]; then
