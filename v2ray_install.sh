@@ -15,7 +15,7 @@ rm -rf v2ray && unzip -q "$ZIP_NAME" -d v2ray
 
 echo "⚙️ 安装核心组件 ..."
 sudo install -m 755 v2ray/v2ray /usr/local/bin/v2ray
-sudo install -m 755 v2ray/v2ctl /usr/local/bin/v2ctl
+#sudo install -m 755 v2ray/v2ctl /usr/local/bin/v2ctl
 sudo mkdir -p /usr/local/share/v2ray
 sudo cp -r v2ray/geo* /usr/local/share/v2ray/
 
