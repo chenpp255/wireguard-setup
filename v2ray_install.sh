@@ -2,12 +2,12 @@
 
 set -e
 
-# 版本号和文件名
 VERSION="v5.29.3"
 ZIP_NAME="v2ray-linux-64.zip"
 DOWNLOAD_URL="https://github.com/v2fly/v2ray-core/releases/download/$VERSION/$ZIP_NAME"
+CONFIG_FILE="/usr/local/etc/v2ray/config.json"
 
-echo "🌐 开始下载 V2Ray $VERSION ..."
+echo "🌐 下载 V2Ray $VERSION ..."
 wget -O "$ZIP_NAME" "$DOWNLOAD_URL"
 
 echo "📦 解压文件 ..."
@@ -22,10 +22,22 @@ sudo cp -r v2ray/geo* /usr/local/share/v2ray/
 echo "📁 创建配置目录 ..."
 sudo mkdir -p /usr/local/etc/v2ray
 
-CONFIG_FILE="/usr/local/etc/v2ray/config.json"
+# ========== 自动导入配置 ==========
 
-if [ ! -f "$CONFIG_FILE" ]; then
-  echo "📝 写入默认配置 ..."
+read -p "🌐 是否从远程导入配置？请输入配置文件 URL（留空则使用默认 VMess 配置）: " config_url
+
+if [[ -n "$config_url" ]]; then
+  echo "⬇️ 正在从 $config_url 下载配置..."
+  curl -fsSL "$config_url" -o config_tmp.json
+  if jq empty config_tmp.json >/dev/null 2>&1; then
+    sudo mv config_tmp.json "$CONFIG_FILE"
+    echo "✅ 配置已成功导入"
+  else
+    echo "❌ 配置文件格式错误，跳过导入"
+    rm -f config_tmp.json
+  fi
+elif [ ! -f "$CONFIG_FILE" ]; then
+  echo "📝 写入默认 VMess 配置 ..."
   sudo tee "$CONFIG_FILE" > /dev/null <<EOF
 {
   "log": {
@@ -40,8 +52,29 @@ if [ ! -f "$CONFIG_FILE" ]; then
     }
   }],
   "outbounds": [{
-    "protocol": "freedom",
-    "settings": {}
+    "protocol": "vmess",
+    "settings": {
+      "vnext": [{
+        "address": "aia.vast.pw",
+        "port": 54417,
+        "users": [{
+          "id": "638a3a0b-f9de-4503-a477-ec4f053fb944",
+          "alterId": 0,
+          "security": "auto"
+        }]
+      }]
+    },
+    "streamSettings": {
+      "network": "ws",
+      "security": "tls",
+      "tlsSettings": {
+        "serverName": "aia.vast.pw",
+        "allowInsecure": false
+      },
+      "wsSettings": {
+        "path": "/gtyhgf"
+      }
+    }
   }]
 }
 EOF
@@ -49,6 +82,7 @@ else
   echo "⚠️ 配置文件已存在，跳过生成"
 fi
 
+# ========== systemd 自启 ==========
 read -p "🛠️ 是否添加 systemd 开机启动？(y/n): " auto_start
 
 if [[ "$auto_start" == "y" ]]; then
