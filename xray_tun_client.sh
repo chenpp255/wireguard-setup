@@ -1,45 +1,39 @@
 #!/bin/bash
 set -e
 
-# ===== 基本参数 =====
-XRAY_VERSION="v1.8.4"
 UUID="6f4027e4-bf44-4e11-9d03-2164c2218316"
 SERVER_DOMAIN="aib.vast.pw"
 SERVER_PORT=8443
-TUN_INTERFACE="utun"
-CONFIG_PATH="/usr/local/etc/xray"
+XRAY_BIN="/usr/local/bin/xray"
+CONFIG_DIR="/usr/local/etc/xray"
 
-# ===== 安装依赖 =====
-echo "[1/6] 安装依赖..."
-apt update && apt install -y curl unzip iproute2 iptables resolvconf
+# 1. 安装依赖
+apt update && apt install -y curl unzip iptables iproute2 resolvconf
 
-# ===== 下载并安装 Xray =====
-echo "[2/6] 安装 Xray 核心..."
-mkdir -p /usr/local/bin /usr/local/etc/xray
-curl -L -o xray.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
+# 2. 安装 Xray
+mkdir -p $CONFIG_DIR
+curl -L -o xray.zip "https://ghproxy.com/https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip"
 unzip -o xray.zip -d /usr/local/bin xray
-chmod +x /usr/local/bin/xray
-rm xray.zip
+chmod +x $XRAY_BIN
+rm -f xray.zip
 
-# ===== 写入配置文件 =====
-echo "[3/6] 写入 Xray 客户端配置..."
-cat > $CONFIG_PATH/config.json <<EOF
+# 3. 写入配置文件
+cat > $CONFIG_DIR/config.json <<EOF
 {
   "log": {
     "loglevel": "warning"
   },
   "inbounds": [
     {
-      "tag": "tun-in",
-      "protocol": "tun",
+      "port": 12345,
+      "protocol": "dokodemo-door",
       "settings": {
-        "domainStrategy": "AsIs",
-        "mtu": 9000,
-        "stack": "system",
-        "inactivityTimeout": 300,
-        "autoRoute": true,
-        "autoRouteExclude": [],
-        "interfaceName": "$TUN_INTERFACE"
+        "network": "tcp,udp",
+        "followRedirect": true
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls"]
       }
     }
   ],
@@ -62,11 +56,11 @@ cat > $CONFIG_PATH/config.json <<EOF
         ]
       },
       "streamSettings": {
+        "network": "tcp",
         "security": "tls",
         "tlsSettings": {
           "serverName": "$SERVER_DOMAIN"
-        },
-        "network": "tcp"
+        }
       }
     },
     {
@@ -81,15 +75,14 @@ cat > $CONFIG_PATH/config.json <<EOF
 }
 EOF
 
-# ===== 创建 systemd 服务 =====
-echo "[4/6] 创建 systemd 服务..."
+# 4. 写入 systemd 服务文件
 cat > /etc/systemd/system/xray-client.service <<EOF
 [Unit]
-Description=Xray Client (TUN)
+Description=Xray Transparent Proxy
 After=network.target
 
 [Service]
-ExecStart=/usr/local/bin/xray run -config $CONFIG_PATH/config.json
+ExecStart=$XRAY_BIN run -config $CONFIG_DIR/config.json
 Restart=on-failure
 User=root
 
@@ -97,12 +90,17 @@ User=root
 WantedBy=multi-user.target
 EOF
 
-# ===== 启动服务并开机自启 =====
-echo "[5/6] 启动并设置开机启动..."
+# 5. 设置 iptables 重定向所有流量到 12345
+iptables -t nat -N XRAY || true
+iptables -t nat -F XRAY
+iptables -t nat -A XRAY -d 127.0.0.1/32 -j RETURN
+iptables -t nat -A XRAY -p tcp -j REDIRECT --to-ports 12345
+iptables -t nat -A PREROUTING -p tcp -j XRAY
+
+# 6. 启动服务
+systemctl daemon-reexec
 systemctl daemon-reload
 systemctl enable xray-client
-systemctl start xray-client
+systemctl restart xray-client
 
-# ===== 完成 =====
-echo "[6/6] 部署完成，当前全局流量将通过 TUN 接入中转服务器：$SERVER_DOMAIN:$SERVER_PORT"
-echo "✅ 建议执行：ip a 查看 $TUN_INTERFACE 是否已启用"
+echo "✅ 透明代理已部署成功。所有 TCP 流量将转发到 Xray 中转服务器：$SERVER_DOMAIN:$SERVER_PORT"
