@@ -2,9 +2,9 @@
 
 set -e
 
-NVIDIA_VERSION="570.144"
+NVIDIA_VERSION="570.124.04"
 NVIDIA_RUN_FILE="NVIDIA-Linux-x86_64-${NVIDIA_VERSION}.run"
-NVIDIA_RUN_URL="https://cn.download.nvidia.com/XFree86/Linux-x86_64/${NVIDIA_VERSION}/${NVIDIA_RUN_FILE}"
+NVIDIA_RUN_URL="https://us.download.nvidia.com/XFree86/Linux-x86_64/${NVIDIA_VERSION}/${NVIDIA_RUN_FILE}"
 
 echo "🚀 开始安装 NVIDIA 驱动 ${NVIDIA_VERSION}..."
 
